@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>養生アプリ v0.2</title>
+<style>
+:root{--ink:#26382d;--muted:#718078;--line:#e1e9e2;--bg:#f4f7f3;--card:#fff;--accent:#55795d;--soft:#edf4ed}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);font-family:-apple-system,BlinkMacSystemFont,"Noto Sans JP","Hiragino Kaku Gothic ProN",sans-serif;color:var(--ink)}
+.app{max-width:430px;min-height:100vh;margin:auto;background:#fbfcfa;position:relative}
+main{padding:22px 20px 95px}.screen{display:none}.screen.active{display:block}
+h1{font-size:28px;line-height:1.35;margin:14px 0}h2{font-size:20px;margin:8px 0}.muted{color:var(--muted);line-height:1.7}.tiny{font-size:12px;color:var(--muted)}
+.hero{background:linear-gradient(145deg,#edf5ec,#f7f3e7);border-radius:26px;padding:25px;margin-top:14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:18px;margin:14px 0;box-shadow:0 6px 18px #29402c08}
+button{border:0;border-radius:15px;padding:15px 16px;width:100%;font-size:16px;font-weight:700;background:var(--accent);color:white;margin-top:10px}
+button.secondary{background:var(--soft);color:var(--ink)}
+button.ghost{background:transparent;color:var(--accent);text-align:left;padding:5px 0}
+input{width:100%;padding:15px;border:1px solid #d8e1d9;border-radius:13px;font-size:18px;margin-top:8px}
+.choices{display:grid;gap:9px;margin-top:20px}.choices button{background:#fff;color:var(--ink);border:1px solid var(--line);margin:0}
+.progress{height:6px;background:#e7ece7;border-radius:99px;overflow:hidden;margin:14px 0}.bar{height:100%;background:#739078}
+.score{display:flex;align-items:center;gap:10px;margin:13px 0}.score strong{width:42px}.track{height:10px;background:#e8eee8;border-radius:99px;flex:1}.fill{height:100%;background:#78977d;border-radius:99px}
+.recipe{border-left:4px solid #7b9a80}.tag{display:inline-block;background:var(--soft);color:#4e6b55;border-radius:99px;padding:5px 9px;font-size:12px}
+.nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:min(430px,100%);display:flex;background:#fffffff2;border-top:1px solid var(--line);padding:8px 10px calc(8px + env(safe-area-inset-bottom));z-index:10}
+.nav button{background:none;color:#708077;margin:0;padding:7px 2px;font-size:12px}.nav button.on{color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="app">
+<main>
+<section id="welcome" class="screen active">
+  <div class="hero">
+    <div class="tiny">YOJO APP v0.2</div>
+    <h1>今日の自分を知って、<br>今日の食事で整える。</h1>
+    <p class="muted">体調のセルフチェックから、今日の養生とレシピまで。</p>
+    <button onclick="show('profile')">はじめる</button>
+  </div>
+  <div class="card"><b>🔐 個人情報は最小限</b><p class="tiny">氏名・メール・電話番号・生年月日は登録しません。</p></div>
+</section>
+
+<section id="profile" class="screen">
+  <button class="ghost" onclick="show('welcome')">‹ 戻る</button>
+  <h1>あなたについて</h1>
+  <p class="muted">年齢は養生情報の提案を調整するために使用します。</p>
+  <label><b>年齢</b><input id="age" type="number" min="10" max="120" placeholder="例：35"></label>
+  <div class="card"><b>性別（任意）</b><p class="tiny">未回答でも利用できます。</p>
+    <div class="choices" style="margin-top:10px">
+      <button onclick="setGender(this,'女性')">女性</button><button onclick="setGender(this,'男性')">男性</button><button onclick="setGender(this,'回答しない')">回答しない</button>
+    </div>
+  </div>
+  <button onclick="begin()">問診を始める</button>
+</section>
+
+<section id="quiz" class="screen">
+  <div class="tiny" id="qcount"></div><div class="progress"><div id="bar" class="bar"></div></div>
+  <h1 id="q"></h1><p class="muted">今の状態に一番近いものを選んでください。</p>
+  <div class="choices" id="choices"></div>
+</section>
+
+<section id="tongue" class="screen">
+  <h1>📷 舌のチェック</h1>
+  <p class="muted">v0.2では舌AIは未実装です。撮影したことを想定して次へ進めます。</p>
+  <div class="card" style="text-align:center;padding:45px 20px;font-size:54px">👅</div>
+  <button onclick="showResult()">舌チェックを完了</button>
+  <button class="secondary" onclick="showResult()">今回はスキップ</button>
+</section>
+
+<section id="result" class="screen">
+  <div class="tiny">TODAY'S CHECK</div><h1>🌿 今日のあなた</h1>
+  <div id="scores"></div>
+  <div class="card"><b>今日の養生ポイント</b><p id="advice"></p></div>
+  <div class="card"><b>判定について</b><p class="tiny">問診への回答から、中医学の考え方をベースに現在の状態の傾向をスコア化した試作です。医学的な診断ではありません。</p></div>
+  <button onclick="show('recipes')">🍲 今日のレシピを見る</button>
+</section>
+
+<section id="recipes" class="screen">
+  <button class="ghost" onclick="show('result')">‹ 結果に戻る</button>
+  <h1>🍲 今日の養生ごはん</h1>
+  <div class="card recipe"><span class="tag">🏮 本格薬膳</span><h2>山薬と鶏肉の薬膳スープ</h2><p class="muted">山薬・なつめ・生姜などを使った、温かいスープ。</p><p class="tiny">⏱ 30分　｜　入手性 ★★☆☆☆</p><button onclick="add()">🛒 買い物リストに追加</button></div>
+  <div class="card recipe"><span class="tag">🛒 スーパー養生</span><h2>鶏肉と長芋の生姜スープ</h2><p class="muted">鶏肉・長芋・生姜・きのこなど、スーパーで揃えやすい材料。</p><p class="tiny">⏱ 20分　｜　入手性 ★★★★★</p><button onclick="add()">🛒 買い物リストに追加</button></div>
+  <div class="card recipe"><span class="tag">🛒 スーパー養生</span><h2>かぼちゃと鶏肉のお粥</h2><p class="muted">米・かぼちゃ・鶏肉で作る、やさしい一品。</p><p class="tiny">⏱ 25分　｜　入手性 ★★★★★</p><button onclick="add()">🛒 買い物リストに追加</button></div>
+</section>
+
+<section id="list" class="screen">
+  <h1>🛒 買い物リスト</h1>
+  <div class="card" id="shopping"><p>□ 鶏肉</p><p>□ 長芋</p><p>□ 生姜</p><p>□ しいたけ</p><p>□ 米</p></div>
+  <button class="secondary" onclick="document.getElementById('shopping').innerHTML='<p>買い物リストは空です。</p>'">リストをクリア</button>
+</section>
+</main>
+<nav class="nav">
+<button id="n-home" onclick="show('profile')">🏠<br>ホーム</button>
+<button id="n-quiz" onclick="begin()">📝<br>チェック</button>
+<button id="n-recipes" onclick="show('recipes')">🍲<br>レシピ</button>
+<button id="n-list" onclick="show('list')">🛒<br>買い物</button>
+</nav>
+</div>
+<script>
+const questions=[
+["疲れやすいと感じますか？",["気虚",3]],["朝からだるく、元気が出にくいですか？",["気虚",3]],["少し動いただけで疲れますか？",["気虚",2,"陽虚",1]],["食後に眠くなりやすいですか？",["気虚",2,"痰湿",2]],
+["手足が冷えやすいですか？",["陽虚",3]],["冷たいものより温かいものが好きですか？",["陽虚",2]],["普段から寒がりですか？",["陽虚",3]],["温かいものを飲むと楽になりますか？",["陽虚",2]],
+["顔色が青白い・つやがないと感じますか？",["血虚",3]],["立ちくらみを感じることがありますか？",["血虚",3]],["目が疲れやすい・乾きやすいですか？",["血虚",2,"陰虚",1]],["髪や爪が乾燥しやすいですか？",["血虚",2]],
+["ストレスで体調が変わりやすいですか？",["気滞",3]],["イライラやため息が増えることがありますか？",["気滞",3]],["胸・脇・お腹などが張る感じがありますか？",["気滞",3]],["気分がすっきりしないことが多いですか？",["気滞",2]],
+["肩や首などがこりやすいですか？",["瘀血",2,"気滞",1]],["同じ場所に痛みや違和感が続きやすいですか？",["瘀血",3]],["手足の冷えやしびれを感じることがありますか？",["瘀血",2,"陽虚",1]],["唇や肌の色が暗く見えることがありますか？",["瘀血",3]],
+["むくみやすいですか？",["痰湿",3]],["体が重だるく感じますか？",["痰湿",3]],["雨の日や湿度が高い日に調子が落ちますか？",["痰湿",3]],["お腹が重く感じることがありますか？",["痰湿",2]],
+["顔や体がほてりやすいですか？",["湿熱",2,"陰虚",2]],["脂っこいもの・甘いものを食べると調子が悪くなりやすいですか？",["湿熱",3,"痰湿",1]],["汗をかきやすく、ベタつきやすいですか？",["湿熱",3]],
+["口や喉が乾きやすいですか？",["陰虚",3]],["夜になるとのぼせ・ほてりを感じますか？",["陰虚",3]],["寝汗をかくことがありますか？",["陰虚",3]]
+];
+const types=["気虚","陽虚","血虚","気滞","瘀血","痰湿","湿熱","陰虚"];
+let qi=0, gender="", scores={}; types.forEach(x=>scores[x]=0);
+function setGender(el,g){gender=g;document.querySelectorAll('#profile .choices button').forEach(b=>b.classList.remove('selected'));el.classList.add('selected')}
+function show(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');window.scrollTo(0,0)}
+function begin(){if(!document.getElementById('age').value){show('profile');alert('年齢を入力してください。');return} qi=0;types.forEach(x=>scores[x]=0);render();show('quiz')}
+function render(){document.getElementById('qcount').textContent=`QUESTION ${qi+1} / ${questions.length}`;document.getElementById('bar').style.width=((qi+1)/questions.length*100)+'%';document.getElementById('q').textContent=questions[qi][0];let c=document.getElementById('choices');c.innerHTML='';["まったくない","あまりない","少しある","かなりある","とても強い"].forEach((t,i)=>{let b=document.createElement('button');b.textContent=t;b.onclick=()=>answer(i);c.appendChild(b)})}
+function answer(v){let d=questions[qi][1];let mult=v/4;for(let i=0;i<d.length;i+=2)scores[d[i]]+=d[i+1]*mult;if(qi<questions.length-1){qi++;render()}else show('tongue')}
+function showResult(){let ranked=Object.entries(scores).sort((a,b)=>b[1]-a[1]);let max=ranked[0][1]||1;document.getElementById('scores').innerHTML=ranked.slice(0,3).map(([n,s])=>`<div class="card"><div class="score"><strong>${n}</strong><div class="track"><div class="fill" style="width:${Math.min(100,s/max*100)}%"></div></div><b>${Math.round(s)}</b></div></div>`).join('');let main=ranked[0][0];let adv={気虚:"無理をしすぎず、温かく消化しやすい食事を意識しましょう。",陽虚:"体を冷やしすぎないよう、温かい食事と休息を意識しましょう。",血虚:"食事を整え、睡眠と休息を大切にしましょう。",気滞:"深呼吸や軽い運動など、気分転換を取り入れてみましょう。",瘀血:"同じ姿勢を続けず、無理のない範囲で体を動かしましょう。",痰湿:"重たく感じる日は、食べ過ぎを避けて温かい食事を意識しましょう。",湿熱:"脂っこいものや甘いものを控え、さっぱりした食事を意識しましょう。",陰虚:"乾燥やほてりを感じる日は、休息と潤いを意識しましょう。"};document.getElementById('advice').textContent=adv[main];show('result')}
+function add(){alert('買い物リストに追加しました！');show('list')}
+</script>
+</body>
+</html>
